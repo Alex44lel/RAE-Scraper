@@ -8,33 +8,39 @@ from ..items import WordItem
 class RaespiderSpider(scrapy.Spider):
     name = "raespider"
     allowed_domains = ["dle.rae.es"]
-    start_urls = ["https://dle.rae.es/a?m=31"]
+    start_urls = ["https://dle.rae.es/zy?m=31"]
     
-    current_word = "a"
+    current_word = "zy"
     words_list = set([])
     alphabet = {
-        'a': 'b',
+        'a': 'á',
+        'á': 'b',
         'b': 'c',
         'c': 'd',
         'd': 'e',
-        'e': 'f',
+        'e': 'é',
+        'é': 'f',
         'f': 'g',
         'g': 'h',
         'h': 'i',
-        'i': 'j',
+        'i': 'í',
+        'í': 'j',
         'j': 'k',
         'k': 'l',
         'l': 'm',
         'm': 'n',
         'n': 'ñ',
         'ñ': 'o',
-        'o': 'p',
+        'o': 'ó',
+        'ó': 'p',
         'p': 'q',
         'q': 'r',
         'r': 's',
         's': 't',
         't': 'u',
-        'u': 'v',
+        'u': 'ú',
+        'ú': 'ü',
+        'ü': 'v',
         'v': 'w',
         'w': 'x',
         'x': 'y',
@@ -96,6 +102,9 @@ class RaespiderSpider(scrapy.Spider):
             word_clean = word[self.skip:]
             word_clean = word_clean.split(", ")
             self.words_list.add(word_clean[0])
+            item = WordItem()
+            item['word'] = word_clean[0]
+            yield item
           
         
         
@@ -117,17 +126,18 @@ class RaespiderSpider(scrapy.Spider):
         else:
             raise CloseSpider("UNEXPECTED BEHAVIOUR: MORE THAN 10 RECOMMENTDATIONS")
         self.test_cases+=1
-        if self.current_word == "zz" or self.test_cases == 100:
+        if self.current_word == "zz":
              
              for word in self.words_list:
                    item = WordItem()
-                   item['word'] = word_clean[0]
+                   item['word'] = word
                    yield item
 
+             print(self.test_cases)
              CloseSpider("END OF DICTIONARY")
 
         
-        if self.test_cases<= 100:
+        if self.current_word != "zz":
             baseURL = "https://dle.rae.es/" + self.current_word +"?m=31"
             '''
             print(response.request.headers.get('User-Agent').decode())
