@@ -5,12 +5,12 @@ import requests
 import random
 from ..items import WordItem
 
-class RaespiderSpider(scrapy.Spider):
-    name = "raespider"
+class RaespiderSpiderWords(scrapy.Spider):
+    name = "raespiderwords"
     allowed_domains = ["dle.rae.es"]
-    start_urls = ["https://dle.rae.es/zy?m=31"]
+    start_urls = ["https://dle.rae.es/a?m=31"]
     
-    current_word = "zy"
+    current_word = "a"
     words_list = set([])
     alphabet = {
         'a': 'á',
@@ -102,9 +102,6 @@ class RaespiderSpider(scrapy.Spider):
             word_clean = word[self.skip:]
             word_clean = word_clean.split(", ")
             self.words_list.add(word_clean[0])
-            item = WordItem()
-            item['word'] = word_clean[0]
-            yield item
           
         
         
