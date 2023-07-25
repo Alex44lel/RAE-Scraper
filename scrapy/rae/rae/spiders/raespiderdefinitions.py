@@ -61,7 +61,7 @@ class RaespiderdefinitionsSpider(scrapy.Spider):
             all_words = json.load(file)
 
         self.start_urls = ["https://dle.rae.es/{}".format(word) for word in all_words]
-        #self.start_urls = ["https://dle.rae.es/casa"]
+        #self.start_urls = ["https://dle.rae.es/malaquita"]
        
     def start_requests(self):
         for url in self.start_urls:
@@ -69,7 +69,7 @@ class RaespiderdefinitionsSpider(scrapy.Spider):
 
     def parse(self, response):
         
-        current_word = self.get_current_word(response)
+        current_word = self.get_current_word_from_url(response)
         
         #A word can have more than one definition, each definition has its acceptions
         definitions = response.xpath('//div[@id="resultados"]/article').getall()
@@ -80,76 +80,87 @@ class RaespiderdefinitionsSpider(scrapy.Spider):
         word_item['number_of_definitions'] = len(definitions)
        
        #
-        for i in range(0, len(definitions)):
-            
-            #p_texts are all paragraphs inside the <article> tag
-            
-            p_texts = scrapy.Selector(text=definitions[i]).css("p").getall()
-            definition_item = DefinitionItem()
-            definition_item["acepciones"] = []
-            definition_item["locuciones"] = []
-
-            for j,element in enumerate(p_texts):
-               
-                p_class_name = scrapy.Selector(text=element).css('::attr(class)').get()
-
-                #this if gets normal definitions
-                if p_class_name[0] == "j":
-                    p_text = scrapy.Selector(text=element).xpath('.//text()').extract()
-                    p_number = scrapy.Selector(text=element).css("span::text").get().replace(". ","")
-                    abbr_text = scrapy.Selector(text=element).css("abbr::text").getall()
-                   
-                    abbr_text = self.format_abbr_text(abbr_text)
-                    p_text = self.remove_prefix_dot_space(p_text)
-                    
-                    acepcion_item = AcepcionesItem()
-                    acepcion_item['number'] = p_number
-                    acepcion_item['text'] = p_text
-                    acepcion_item['tipo'] = abbr_text
-                    definition_item["acepciones"].append(acepcion_item)
-                
-                if p_class_name[0] == "k":
-                    locucion_item = LocucionesItem()
-
-                    loc_name_text = scrapy.Selector(text=element).xpath('.//text()').extract()
-
-                    loc_name_text = self.format_loc_name_text(loc_name_text)
-                    locucion_item["locucion_name"] = loc_name_text
-                    locucion_item["definitions"] = []
-
-                    
-                    #search for locuciones definitions
-                    current_index = j+1
-                    p_class_name_for_loc_def_search = scrapy.Selector(text=p_texts[current_index]).css('::attr(class)').get()
-                    while p_class_name_for_loc_def_search == "m":
-                        loc_text = scrapy.Selector(text=p_texts[current_index]).xpath('.//text()').extract()
-                        loc_n = scrapy.Selector(text=p_texts[current_index]).css("span::text").get().replace(". ","")
-                        loc_abbr = scrapy.Selector(text=p_texts[current_index]).css("abbr::text").getall()
-
-                        loc_abbr = self.format_abbr_text(loc_abbr)
-                        loc_text = self.remove_prefix_dot_space(loc_text)
-                        
-                        locution_definition_item = LocucionesDefinitionItem()
-                        locution_definition_item['number'] = loc_n
-                        locution_definition_item['text'] = loc_text
-                        locution_definition_item['tipo'] = loc_abbr
-                        locucion_item["definitions"].append(locution_definition_item)
-
-                        current_index +=1
-                        p_class_name_for_loc_def_search = scrapy.Selector(text=p_texts[current_index]).css('::attr(class)').get()
-
-
-
-
-                    definition_item["locuciones"].append(locucion_item)
-
-                   
-            word_item['definitions'].append(definition_item)
+        for i in range(0, len(definitions)):  
+            self.get_word_definition_data(i,word_item,definitions)
 
         yield word_item
                 
 
+    #gets all acceptions and locutions for each word definition
+    def get_word_definition_data(self,i,word_item,definitions):
+        #p_texts are all paragraphs inside the <article> tag
+        p_texts = scrapy.Selector(text=definitions[i]).css("p").getall()
+        definition_item = DefinitionItem()
+        definition_item["acepciones"] = []
+        definition_item["locuciones"] = []
+
+        for j,element in enumerate(p_texts):
             
+            p_class_name = scrapy.Selector(text=element).css('::attr(class)').get()
+
+            #add acceptions
+            if p_class_name[0] == "j":
+                self.get_acceptions(element,definition_item)
+            #add locutions
+            if p_class_name[0] == "k":
+                self.get_locution(element,j,p_texts,definition_item)
+
+                
+        word_item['definitions'].append(definition_item)
+        
+
+    
+    def get_locution(self,element,j,p_texts,definition_item):
+        locucion_item = LocucionesItem()
+
+        loc_name_text = scrapy.Selector(text=element).xpath('.//text()').extract()
+
+        loc_name_text = self.format_loc_name_text(loc_name_text)
+        locucion_item["locucion_name"] = loc_name_text
+        locucion_item["definitions"] = []
+
+        
+        #search for locuciones definitions
+        current_index = j+1
+        p_class_name_for_loc_def_search = scrapy.Selector(text=p_texts[current_index]).css('::attr(class)').get()
+        while p_class_name_for_loc_def_search == "m" and current_index<len(p_texts):
+            loc_text = scrapy.Selector(text=p_texts[current_index]).xpath('.//text()').extract()
+            loc_n = scrapy.Selector(text=p_texts[current_index]).css("span::text").get().replace(". ","")
+            loc_abbr = scrapy.Selector(text=p_texts[current_index]).css("abbr::text").getall()
+
+            loc_abbr = self.format_abbr_text(loc_abbr)
+            loc_text = self.remove_prefix_dot_space(loc_text)
+            
+            locution_definition_item = LocucionesDefinitionItem()
+            locution_definition_item['number'] = loc_n
+            locution_definition_item['text'] = loc_text
+            locution_definition_item['tipo'] = loc_abbr
+            locucion_item["definitions"].append(locution_definition_item)
+
+            current_index +=1
+            if current_index<len(p_texts):
+                p_class_name_for_loc_def_search = scrapy.Selector(text=p_texts[current_index]).css('::attr(class)').get()
+
+
+
+
+        definition_item["locuciones"].append(locucion_item)
+    def get_acceptions(self,element,definition_item):
+        
+        p_text = scrapy.Selector(text=element).xpath('.//text()').extract()
+        p_number = scrapy.Selector(text=element).css("span::text").get().replace(". ","")
+        abbr_text = scrapy.Selector(text=element).css("abbr::text").getall()
+        
+        abbr_text = self.format_abbr_text(abbr_text)
+        p_text = self.remove_prefix_dot_space(p_text)
+        
+        acepcion_item = AcepcionesItem()
+        acepcion_item['number'] = p_number
+        acepcion_item['text'] = p_text
+        acepcion_item['tipo'] = abbr_text
+        definition_item["acepciones"].append(acepcion_item)
+
+
     def remove_prefix_dot_space(self,p_text):
         # Find the first occurrence of dot and space
         p_text = ' '.join([t.strip() for t in p_text if t.strip()])
@@ -168,19 +179,19 @@ class RaespiderdefinitionsSpider(scrapy.Spider):
 
         return modified_string
 
-
-    
+      
     def format_loc_name_text(self,loc_name_text):
         loc_name_text = " ".join(loc_name_text).replace("  "," ")
 
         return loc_name_text
+   
     def format_abbr_text(self,abbr_text):
         if "etc.," in abbr_text:
             abbr_text.remove("etc.,")
         abbr_text= " ".join(abbr_text)
         return abbr_text
     
-    def get_current_word(self,response):
+    def get_current_word_from_url(self,response):
         parsed_url = urlparse(response.url)
         current_word = unquote(parsed_url.path.lstrip("/"))
         return current_word
