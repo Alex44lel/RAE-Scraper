@@ -102,8 +102,6 @@ class RaespiderSpiderWords(scrapy.Spider):
             word_clean = word[self.skip:]
             word_clean = word_clean.split(", ")
             self.words_list.add(word_clean[0])
-          
-        
         
         if len(words)==40:
             self.current_word = self.current_word + "a"
@@ -136,11 +134,7 @@ class RaespiderSpiderWords(scrapy.Spider):
         
         if self.current_word != "zz":
             baseURL = "https://dle.rae.es/" + self.current_word +"?m=31"
-            '''
-            print(response.request.headers.get('User-Agent').decode())
-            print(self.words_list)
-            print(baseURL)
-            '''
+          
            
             yield response.follow(baseURL, callback=self.parse,headers={'User-Agent': random.choice(self.user_agent_list)})
 
