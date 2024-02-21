@@ -21,7 +21,8 @@ cd scrapy/rae
 ```
 Execute the crawler and save result to json
 ```
-scrapy crawl raespider -o words.json
+scrapy crawl raespiderwords  -o words.json
+scrapy crawl raespiderdefinitions   -o words.json
 ```
 ### Considerations
 The scrappy crawler will take approximately 4 hours to get all words from RAE. There is no proxy middleware implemented on the crawler,  but this has not posed any problems in previous use cases.
